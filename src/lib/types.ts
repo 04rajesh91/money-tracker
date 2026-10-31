@@ -7,9 +7,23 @@ export interface Transaction {
   category: string;
   date: string; // ISO yyyy-mm-dd
   note?: string;
+  recurringId?: string; // set when auto-added by a recurring rule
 }
 
 export type Budgets = Record<string, number>; // category -> monthly limit
+
+// A transaction that is added automatically once a month (salary, rent, bills...)
+export interface RecurringRule {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  category: string;
+  note?: string;
+  dayOfMonth: number; // 1-28, so it exists in every month
+  startMonth: string; // yyyy-mm, first month to add it
+  active: boolean;
+  lastAddedMonth?: string; // yyyy-mm of the most recent auto-added entry
+}
 
 export const EXPENSE_CATEGORIES = [
   "Food",

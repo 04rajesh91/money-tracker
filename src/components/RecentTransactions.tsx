@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Repeat, Trash2 } from "lucide-react";
 import { CATEGORY_COLORS, type Transaction } from "../lib/types";
 import { formatINR } from "../lib/format";
 
@@ -56,8 +56,14 @@ export function RecentTransactions({
                 aria-hidden
               />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-slate-800 truncate">
-                  {t.category}
+                <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800 min-w-0">
+                  <span className="truncate">{t.category}</span>
+                  {t.recurringId && (
+                    <Repeat
+                      className="w-3.5 h-3.5 text-sky-500 shrink-0"
+                      aria-label="Added automatically by a recurring entry"
+                    />
+                  )}
                 </div>
                 <span className="block text-xs text-slate-400 truncate">
                   {formatDate(t.date)}

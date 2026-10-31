@@ -1,14 +1,18 @@
 import { Wallet } from "lucide-react";
 
+export type Tab = "dashboard" | "add" | "budgets" | "recurring";
+
 interface Props {
-  active: "dashboard" | "add" | "budgets";
-  onNavigate: (tab: "dashboard" | "add" | "budgets") => void;
+  active: Tab;
+  onNavigate: (tab: Tab) => void;
 }
 
-const TABS: { id: Props["active"]; label: string }[] = [
+// `short` is shown on phones so all four tabs fit without scrolling
+const TABS: { id: Tab; label: string; short?: string }[] = [
   { id: "dashboard", label: "Dashboard" },
-  { id: "add", label: "Add Transaction" },
+  { id: "add", label: "Add Transaction", short: "Add" },
   { id: "budgets", label: "Budgets" },
+  { id: "recurring", label: "Recurring" },
 ];
 
 export function TopNav({ active, onNavigate }: Props) {
@@ -30,13 +34,21 @@ export function TopNav({ active, onNavigate }: Props) {
             <button
               key={t.id}
               onClick={() => onNavigate(t.id)}
-              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              aria-label={t.label}
+              className={`px-3 sm:px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 active === t.id
                   ? "border-emerald-600 text-emerald-700"
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
               }`}
             >
-              {t.label}
+              {t.short ? (
+                <>
+                  <span className="sm:hidden">{t.short}</span>
+                  <span className="hidden sm:inline">{t.label}</span>
+                </>
+              ) : (
+                t.label
+              )}
             </button>
           ))}
         </nav>

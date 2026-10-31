@@ -3,8 +3,8 @@ import { useStore } from "./hooks/useStore";
 import { Dashboard } from "./screens/Dashboard";
 import { AddTransaction } from "./screens/AddTransaction";
 import { Budgets } from "./screens/Budgets";
-
-type Tab = "dashboard" | "add" | "budgets";
+import { Recurring } from "./screens/Recurring";
+import type { Tab } from "./components/TopNav";
 
 function App() {
   const store = useStore();
@@ -40,6 +40,9 @@ function App() {
           />
         )}
         {tab === "budgets" && <Budgets store={store} onNavigate={navigate} />}
+        {tab === "recurring" && (
+          <Recurring store={store} onNavigate={navigate} />
+        )}
       </div>
       <footer className="border-t border-slate-200 bg-white">
         <p className="max-w-5xl mx-auto px-4 py-4 text-center text-xs text-slate-400">

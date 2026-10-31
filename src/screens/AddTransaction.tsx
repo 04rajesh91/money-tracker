@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, IndianRupee } from "lucide-react";
+import { AlertTriangle, Check, IndianRupee, Sparkles } from "lucide-react";
 import type { Store } from "../hooks/useStore";
 import {
   categoriesForType,
@@ -7,12 +7,14 @@ import {
   type TransactionType,
 } from "../lib/types";
 import { todayISO } from "../lib/periods";
-import { TopNav } from "../components/TopNav";
+import { suggestCategory } from "../lib/categorize";
+import { checkBudgetCrossing, crossingMessage, notify } from "../lib/alerts";
+import { TopNav, type Tab } from "../components/TopNav";
 
 interface Props {
   store: Store;
   editingId?: string | null;
-  onNavigate: (tab: "dashboard" | "add" | "budgets") => void;
+  onNavigate: (tab: Tab) => void;
   onDoneEditing: () => void;
 }
 
@@ -38,6 +40,11 @@ export function AddTransaction({
   const [note, setNote] = useState<string>(editing?.note ?? "");
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
+  const [budgetAlert, setBudgetAlert] = useState<string | null>(null);
+  // Smart categorise only acts until the user picks a type/category themselves
+  const [typeTouched, setTypeTouched] = useState(!!editing);
+  const [categoryTouched, setCategoryTouched] = useState(!!editing);
+  const [autoPicked, setAutoPicked] = useState<string | null>(null);
   // Guards against double submits (a ref updates synchronously, unlike state)
   const submittedRef = useRef(false);
   const redirectTimer = useRef<number | undefined>(undefined);
@@ -49,8 +56,36 @@ export function AddTransaction({
   // When type changes, reset category to a valid one for that type
   const onTypeChange = (t: TransactionType) => {
     setType(t);
+    setTypeTouched(true);
     if (!categoriesForType(t).includes(category)) {
       setCategory(categoriesForType(t)[0]);
+      setAutoPicked(null);
+    }
+  };
+
+  const onCategoryChange = (c: string) => {
+    setCategory(c);
+    setCategoryTouched(true);
+    setAutoPicked(null);
+  };
+
+  const onNoteChange = (value: string) => {
+    setNote(value);
+    if (categoryTouched) return;
+    let nextType = type;
+    let suggestion = suggestCategory(value, type);
+    // e.g. typing "salary" while on Expense switches to Income
+    if (!suggestion && !typeTouched) {
+      const other: TransactionType = type === "expense" ? "income" : "expense";
+      suggestion = suggestCategory(value, other);
+      if (suggestion) nextType = other;
+    }
+    if (suggestion) {
+      setType(nextType);
+      setCategory(suggestion);
+      setAutoPicked(suggestion);
+    } else if (autoPicked) {
+      setAutoPicked(null);
     }
   };
 
@@ -70,20 +105,34 @@ export function AddTransaction({
       category,
       date,
       note: note.trim() || undefined,
+      recurringId: editing?.recurringId,
     };
+    const crossing = checkBudgetCrossing(
+      store.transactions,
+      store.budgets,
+      payload,
+      editing?.id
+    );
     submittedRef.current = true;
-    if (editing) {
-      store.updateTransaction(editing.id, payload);
+    if (editing) store.updateTransaction(editing.id, payload);
+    else store.addTransaction(payload);
+
+    if (crossing) {
+      const msg = crossingMessage(crossing);
+      setBudgetAlert(msg);
+      notify("Money Tracker – budget alert", msg);
+    }
+    if (editing && !crossing) {
       onDoneEditing();
       onNavigate("dashboard");
-    } else {
-      store.addTransaction(payload);
-      setFlash(true);
-      redirectTimer.current = window.setTimeout(
-        () => onNavigate("dashboard"),
-        700
-      );
+      return;
     }
+    setFlash(true);
+    // Stay a little longer when there's a budget alert so it can be read
+    redirectTimer.current = window.setTimeout(() => {
+      if (editing) onDoneEditing();
+      onNavigate("dashboard");
+    }, crossing ? 2500 : 700);
   };
 
   return (
@@ -98,8 +147,16 @@ export function AddTransaction({
           <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
             <Check className="w-4 h-4 text-emerald-600" />
             <span className="text-sm text-emerald-700">
-              Transaction saved. Returning to dashboard…
+              {editing ? "Changes saved." : "Transaction saved."} Returning to
+              dashboard…
             </span>
+          </div>
+        )}
+
+        {budgetAlert && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="text-sm text-amber-800">{budgetAlert}</span>
           </div>
         )}
 
@@ -165,7 +222,7 @@ export function AddTransaction({
                 <button
                   key={c}
                   type="button"
-                  onClick={() => setCategory(c)}
+                  onClick={() => onCategoryChange(c)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                     category === c
                       ? "bg-slate-800 text-white border-slate-800"
@@ -176,6 +233,13 @@ export function AddTransaction({
                 </button>
               ))}
             </div>
+            {autoPicked && (
+              <p className="mt-2 flex items-center gap-1 text-xs text-violet-600">
+                <Sparkles className="w-3.5 h-3.5" /> Auto-picked{" "}
+                <span className="font-semibold">{autoPicked}</span> from your
+                note. Tap another category to change it.
+              </p>
+            )}
           </div>
 
           {/* Date */}
@@ -200,8 +264,8 @@ export function AddTransaction({
             <input
               type="text"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Groceries for the week"
+              onChange={(e) => onNoteChange(e.target.value)}
+              placeholder="e.g. Swiggy dinner, Uber to office, salary"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
             />
           </div>

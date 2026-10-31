@@ -1,7 +1,8 @@
-import type { Budgets, Transaction } from "./types";
+import type { Budgets, RecurringRule, Transaction } from "./types";
 
 const TX_KEY = "mt_transactions";
 const BUDGET_KEY = "mt_budgets";
+const RECURRING_KEY = "mt_recurring";
 
 export function loadTransactions(): Transaction[] {
   try {
@@ -35,7 +36,24 @@ export function saveBudgets(b: Budgets): void {
   localStorage.setItem(BUDGET_KEY, JSON.stringify(b));
 }
 
+export function loadRecurring(): RecurringRule[] {
+  try {
+    const raw = localStorage.getItem(RECURRING_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RecurringRule[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch {
+    return [];
+  }
+}
+
+export function saveRecurring(rules: RecurringRule[]): void {
+  localStorage.setItem(RECURRING_KEY, JSON.stringify(rules));
+}
+
 export function clearAllStorage(): void {
   localStorage.removeItem(TX_KEY);
   localStorage.removeItem(BUDGET_KEY);
+  localStorage.removeItem(RECURRING_KEY);
 }

@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Database, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Database, Plus, Repeat, Trash2, X } from "lucide-react";
 import type { Store } from "../hooks/useStore";
 import { getMonthRange, inMonth } from "../lib/periods";
-import { TopNav } from "../components/TopNav";
+import { TopNav, type Tab } from "../components/TopNav";
 import { SummaryCards } from "../components/SummaryCards";
 import { ExpenseDonut } from "../components/ExpenseDonut";
 import { BudgetVsActualChart } from "../components/BudgetVsActualChart";
@@ -12,7 +12,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 
 interface Props {
   store: Store;
-  onNavigate: (tab: "dashboard" | "add" | "budgets") => void;
+  onNavigate: (tab: Tab) => void;
   onEditTransaction: (id: string) => void;
 }
 
@@ -20,6 +20,7 @@ export function Dashboard({ store, onNavigate, onEditTransaction }: Props) {
   const [refDate, setRefDate] = useState<Date>(() => new Date());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showAutoAdded, setShowAutoAdded] = useState(store.autoAddedOnLoad > 0);
 
   const range = useMemo(() => getMonthRange(refDate), [refDate]);
 
@@ -117,6 +118,25 @@ export function Dashboard({ store, onNavigate, onEditTransaction }: Props) {
           </button>
         </div>
 
+        {showAutoAdded && (
+          <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-start gap-3">
+            <Repeat className="w-5 h-5 text-sky-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-sky-800 flex-1">
+              <span className="font-semibold">Automation:</span>{" "}
+              {store.autoAddedOnLoad} recurring{" "}
+              {store.autoAddedOnLoad === 1 ? "entry was" : "entries were"} added
+              automatically since your last visit.
+            </p>
+            <button
+              onClick={() => setShowAutoAdded(false)}
+              className="p-1 rounded-lg text-sky-500 hover:bg-sky-100"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {warnings.length > 0 && <BudgetWarningBanner warnings={warnings} />}
 
         {!hasData ? (
@@ -187,7 +207,7 @@ export function Dashboard({ store, onNavigate, onEditTransaction }: Props) {
       <ConfirmDialog
         open={confirmClear}
         title="Clear all data?"
-        message="All transactions and budgets will be permanently deleted."
+        message="All transactions, budgets and recurring entries will be permanently deleted."
         confirmLabel="Clear all"
         onConfirm={() => {
           store.clearAll();

@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
-import { Check } from "lucide-react";
+import { Bell, BellRing, Check, X } from "lucide-react";
 import type { Store } from "../hooks/useStore";
 import { EXPENSE_CATEGORIES } from "../lib/types";
 import { getMonthRange, inMonth } from "../lib/periods";
 import { formatINR } from "../lib/format";
-import { TopNav } from "../components/TopNav";
+import { TopNav, type Tab } from "../components/TopNav";
 
 interface Props {
   store: Store;
-  onNavigate: (tab: "dashboard" | "add" | "budgets") => void;
+  onNavigate: (tab: Tab) => void;
 }
 
 interface RowState {
@@ -40,6 +40,18 @@ export function Budgets({ store, onNavigate }: Props) {
     }
     return init;
   });
+  const notifySupported = typeof window !== "undefined" && "Notification" in window;
+  const [notifyPermission, setNotifyPermission] = useState<string>(
+    notifySupported ? Notification.permission : "unsupported"
+  );
+  const enableNotifications = async () => {
+    try {
+      setNotifyPermission(await Notification.requestPermission());
+    } catch {
+      setNotifyPermission("denied");
+    }
+  };
+
   // Save on every change so edits are never lost when leaving the page
   const updateLimit = (cat: string, value: string) => {
     const nextDraft = { ...draft, [cat]: { limit: value } };
@@ -147,6 +159,16 @@ export function Budgets({ store, onNavigate }: Props) {
                       className="w-24 px-2 py-1.5 text-sm rounded-lg border border-slate-200 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                     <span className="text-xs text-slate-400">/month</span>
+                    <button
+                      type="button"
+                      onClick={() => updateLimit(c, "")}
+                      disabled={limit === 0}
+                      className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:invisible"
+                      aria-label={`Remove ${c} budget`}
+                      title="Remove budget"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -192,6 +214,42 @@ export function Budgets({ store, onNavigate }: Props) {
         <p className="flex items-center gap-1.5 text-xs text-slate-400">
           <Check className="w-3.5 h-3.5" /> Changes are saved automatically.
         </p>
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-start gap-3 flex-1">
+            <Bell className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                Budget alerts
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                When an expense takes a category past 80% or 100% of its
+                budget, you get an alert in the app
+                {notifyPermission === "granted"
+                  ? " and a device notification."
+                  : ". You can also turn on device notifications."}
+              </p>
+            </div>
+          </div>
+          {notifyPermission === "default" && (
+            <button
+              onClick={enableNotifications}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors"
+            >
+              <BellRing className="w-4 h-4" /> Enable notifications
+            </button>
+          )}
+          {notifyPermission === "granted" && (
+            <span className="text-xs font-medium text-emerald-600">
+              Notifications on
+            </span>
+          )}
+          {notifyPermission === "denied" && (
+            <span className="text-xs text-slate-400">
+              Notifications are blocked in your browser settings.
+            </span>
+          )}
+        </div>
       </main>
     </div>
   );
